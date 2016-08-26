@@ -20,7 +20,6 @@ using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 #endregion
 
-
 namespace CSUACSelfElevation
 {
     /// <summary>
