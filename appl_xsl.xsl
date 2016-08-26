@@ -9,7 +9,11 @@ xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
           <tr bgcolor="#9acd32">
             <th>Process Name</th>
             <th>Window Title</th>
+            <th>TotalSeconds</th>
             <th>Current Windows Identity</th>
+            <th>IsUserPartOfAdminGroup</th>
+            <th>IntegrityLevel</th>
+            <th>Recordings</th>
           </tr>
           <xsl:for-each select="ApplDetails/Application_Info">
             <tr>
@@ -24,6 +28,15 @@ xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
               </td>
               <td>
                 <xsl:value-of select="currentWindowsIdentity"/>
+              </td>
+              <td>
+                <xsl:value-of select="IsUserPartOfAdminGroup"/>
+              </td>
+               <td>
+                <xsl:value-of select="IntegrityLevel"/>
+              </td>
+              <td>
+                <xsl:value-of select="Recordings"/>
               </td>
             </tr>
           </xsl:for-each>

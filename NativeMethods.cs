@@ -248,9 +248,7 @@ namespace CSUACSelfElevation
             TOKEN_QUERY | TOKEN_QUERY_SOURCE | TOKEN_ADJUST_PRIVILEGES |
             TOKEN_ADJUST_GROUPS | TOKEN_ADJUST_DEFAULT | TOKEN_ADJUST_SESSIONID);
 
-
         public const Int32 ERROR_INSUFFICIENT_BUFFER = 122;
-
 
         // Integrity Levels
 
@@ -303,7 +301,6 @@ namespace CSUACSelfElevation
             SECURITY_IMPERSONATION_LEVEL ImpersonationLevel,
             out SafeTokenHandle DuplicateTokenHandle);
 
-
         /// <summary>
         /// The function retrieves a specified type of information about an 
         /// access token. The calling process must have appropriate access 
@@ -338,13 +335,11 @@ namespace CSUACSelfElevation
             Int32 tokenInfoLength, 
             out Int32 returnLength);
 
-
         /// <summary>
         /// Sets the elevation required state for a specified button or 
         /// command link to display an elevated icon. 
         /// </summary>
         public const UInt32 BCM_SETSHIELD = 0x160C;
-
 
         /// <summary>
         /// Sends the specified message to a window or windows. The function 
@@ -365,7 +360,6 @@ namespace CSUACSelfElevation
         /// <returns></returns>
         [DllImport("user32", CharSet = CharSet.Auto, SetLastError = true)]
         public static extern int SendMessage(IntPtr hWnd, UInt32 Msg, int wParam, IntPtr lParam);
-
 
         /// <summary>
         /// The function returns a pointer to a specified subauthority in a 

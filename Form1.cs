@@ -15,18 +15,17 @@ using Gma.System.MouseKeyHook;
 using Gma.System.MouseKeyHook.Implementation;
 using System.Security.Principal;
 using CSUACSelfElevation;
-using WinRobotCoreLib;
+using System.Text;
+using System.Configuration;
+using System.Security.Cryptography;
 
-
-
-namespace WinApplWatcher
+namespace UserAnalytics
 {
     /// <summary>
     /// Summary description for Form1.
     /// </summary>
     public class Form1 : System.Windows.Forms.Form
     {
-
         private System.Windows.Forms.Timer timer1;
         private System.ComponentModel.IContainer components;
         private System.Windows.Forms.NotifyIcon notifyIcon1;
@@ -35,7 +34,6 @@ namespace WinApplWatcher
         private System.Windows.Forms.MenuItem menuItem1;
         private System.Windows.Forms.MenuItem menuItem2;
         private System.Windows.Forms.MenuItem menuItem3;
-
 
         #region Variables Declaration
         public static string appName, prevvalue = "";
@@ -47,7 +45,8 @@ namespace WinApplWatcher
         public static string tempstr;
         public TimeSpan applfocusinterval;
         public DateTime logintime;
-        public string appFileName = "D:\\appldetails_" + DateTime.Now.ToString("dd_MM_yyyy") + ".xml";
+        public DateTime fileSaveTime;
+        public string appFileName = Path.Combine(Directory.GetCurrentDirectory(), "appldetails_" + DateTime.Now.ToString("yyyyMMdd-HHMMss") + ".xml");
         public bool isKeyPress = false;
         private DateTime lastAppKeyPressed = DateTime.Now;
         private DateTime prevKeyPressed = DateTime.Now;
@@ -55,8 +54,6 @@ namespace WinApplWatcher
         private String userRights;
         private WindowsIdentity winID;
         private List<GenericWatcherList> watchFiels = new List<GenericWatcherList>();
-
-
         //This Function is used to get Active process ID...
         [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
         private static extern IntPtr GetWindowRect(IntPtr hWnd, out RECTANGLE lprect);
@@ -79,7 +76,7 @@ namespace WinApplWatcher
         private interface IWinRobotService
         {
             void GetActiveConsoleSession([Out, MarshalAs(UnmanagedType.IUnknown)] out object ppUnk);
-            void RegSession([Out, MarshalAs(UnmanagedType.IUnknown)] out object ppUnk);            
+            void RegSession([Out, MarshalAs(UnmanagedType.IUnknown)] out object ppUnk);
         }
 
 
@@ -129,7 +126,7 @@ namespace WinApplWatcher
             // timer1
             // 
             this.timer1.Enabled = true;
-            this.timer1.Interval = 500;
+            this.timer1.Interval = 1000;
             this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
             // 
             // notifyIcon1
@@ -187,8 +184,9 @@ namespace WinApplWatcher
             this.Name = "Form1";
             this.ShowInTaskbar = false;
             this.Text = "Win Appl Watcher";
-            this.WindowState = System.Windows.Forms.FormWindowState.Maximized;
-            this.Closed += new System.EventHandler(this.Form1_Closed);
+            this.WindowState = System.Windows.Forms.FormWindowState.Maximized;         
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_FormClosing);
+            this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.Form1_FormClosed);
             this.Load += new System.EventHandler(this.Form1_Load);
             ((System.ComponentModel.ISupportInitialize)(this.dataGrid1)).EndInit();
             this.ResumeLayout(false);
@@ -207,7 +205,6 @@ namespace WinApplWatcher
             Subscribe(Hook.GlobalEvents());
         }
 
-        
         //Image will return memory stream of the image.....
         public Stream GetStream(Image img, ImageFormat format)
         {
@@ -319,7 +316,6 @@ namespace WinApplWatcher
             }
         }
 
-
         private void HookManager_MouseWheel(object sender, MouseEventArgs e)
         {
 
@@ -335,19 +331,27 @@ namespace WinApplWatcher
         [STAThread]
         static void Main()
         {
-            Guid CLSID_CTask = new Guid("{D08018BD-6958-4A2E-95EA-FEC13211DA0F}");
+            /*Guid CLSID_CTask = new Guid("{D08018BD-6958-4A2E-95EA-FEC13211DA0F}");
             Guid IID_IUnknown = new Guid("00000000-0000-0000-C000-000000000046");            
             const uint CLSCTX_INPROC_SERVER = 1;
-            windowsService OSched = new windowsService();
+            WinRobotCoreLib.WinRobotService test1 = new WinRobotCoreLib.WinRobotService();
+            WinRobotCoreLib.WinRobotSession test2 = new WinRobotCoreLib.WinRobotSession();           
+            object bimp = test2.CreateScreenCapture(0, 0, 1024, 768);
+            Bitmap image = (Bitmap)bimp;
+            image.Save("D:\\test11.bmp");                                    
+            //Int32 usecount1 = Marshal.AddRef(pIUnk);
+            //Int32 usecount2 = Marshal.Release(pIUnk);
+            //pIUnk = test1.GetActiveConsoleSession();                   
+            /*windowsService OSched = new windowsService();
             IntPtr pIUnk = Marshal.GetIUnknownForObject(OSched);
             Int32 usecount1 = Marshal.AddRef(pIUnk);
             Int32 usecount2 = Marshal.Release(pIUnk);
             IntPtr pISched;
             Guid IidSched = new Guid("43CF023A-99C4-4867-AA3F-EA490CACE693");
             Int32 result = Marshal.QueryInterface(pIUnk, ref IidSched, out pISched);
-            IWinRobotService ITaskSchd = OSched as IWinRobotService;
-            object test = new windowsSession();
-            //ITaskSchd.GetActiveConsoleSession(out test);
+            IWinRobotService ITaskSchd = OSched as IWinRobotService;*/
+            //object test = new windowsSession();
+            //ITaskSchd.GetActiveConsoleSession(out test);*/                            
             applnames = new Stack();
             applhash = new Hashtable();
             form1 = new Form1();
@@ -373,15 +377,27 @@ namespace WinApplWatcher
                 //genWatchList.seconds = 0;
                 WindowsPrincipal winPrincipal = new WindowsPrincipal(winID);
                 Boolean blnIsAdmin = winPrincipal.IsInRole(WindowsBuiltInRole.Administrator);
-                Boolean isUserAdminInGroup = IsUserInAdminGroup();
+                Boolean isUserAdminInGroup = IsUserInAdminGroup();            
+                                                                
+                if(appltitle.Contains("appldetails_"))
+                {
+                    p.Kill();
+                    MessageBox.Show("You do not have sufficient privileges to run this process, Please contact administrator");
+                }
+
                 if (appName.Equals("mmc", StringComparison.InvariantCultureIgnoreCase))
                 {
                     p.Kill();
                     MessageBox.Show("You do not have sufficient privileges to run this process, Please contact administrator");
                 }
+
                 if (isUserAdminInGroup)
                 {
                     genWatchList.isUserInAdminGroup = "YES";
+                }
+                else
+                {
+                    genWatchList.isUserInAdminGroup = "NO";
                 }
 
                 if (blnIsAdmin)
@@ -414,10 +430,10 @@ namespace WinApplWatcher
                 {
                     IDictionaryEnumerator en = applhash.GetEnumerator();
                     applfocusinterval = DateTime.Now.Subtract(applfocustime);
-
                     foreach (var item in watchFiels)
                     {
                         string prevItem = item.appTitle + "$$$!!!" + item.processName;
+
                         if (prevItem.Equals(prevvalue))
                         {
                             double prevseconds = Convert.ToDouble(item.seconds);
@@ -429,6 +445,7 @@ namespace WinApplWatcher
                     prevvalue = appltitle + "$$$!!!" + appName;
                     applfocustime = DateTime.Now;
                 }
+
                 // Get and display the process integrity level.
                 int IL = GetProcessIntegrityLevel();
                 switch (IL)
@@ -446,6 +463,7 @@ namespace WinApplWatcher
                     default:
                         genWatchList.integratedSecurityLevel = "Unknown"; break;
                 }
+
                 //Added by Deepak Bhor
                 /*if (!appName.Equals("chrome", StringComparison.InvariantCultureIgnoreCase))
                 {
@@ -464,17 +482,27 @@ namespace WinApplWatcher
 
                         bmp.Save("D:\\test.png", ImageFormat.Png);
                 }*/
-                    if (isNewAppl)
-                        {
-                            applfocustime = DateTime.Now;
-                        }
+
+                if (isNewAppl)
+                {
+                    applfocustime = DateTime.Now;
+                }
+
+                TimeSpan tmsinterval = DateTime.Now.Subtract(fileSaveTime);                 
+                if (tmsinterval.Minutes > 15)
+                {
+                    SaveandShowDetails();
+                    fileSaveTime = DateTime.Now;
+                }           
+                
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message + ":" + ex.StackTrace);
             }
         }
-        private void Form1_Closed(object sender, System.EventArgs e)
+
+      /*private void Form1_Closed(object sender, System.EventArgs e)
         {
             //This is activated on click on Exit menu item and to show actual and calculated time spent on all applications
             //opened so far and to open IE to show xml contents....
@@ -483,8 +511,7 @@ namespace WinApplWatcher
                 SaveandShowDetails();
                 TimeSpan timeinterval = DateTime.Now.Subtract(logintime);
                 System.Diagnostics.EventLog.WriteEntry("Application Watcher Total Time Details", timeinterval.Hours + " Hrs " + timeinterval.Minutes + " Mins", System.Diagnostics.EventLogEntryType.Information);
-                MessageBox.Show("Actual Time Spent :" + timeinterval.Hours + " Hrs " + timeinterval.Minutes + " Mins", "Application Watcher Total Time Details");
-
+                //MessageBox.Show("Actual Time Spent :" + timeinterval.Hours + " Hrs " + timeinterval.Minutes + " Mins", "Application Watcher Total Time Details");
                 //commented by Deepak
                 //StreamReader freader = new StreamReader(@"c:\appldetails.xml");
                 //Added by Deepak
@@ -514,38 +541,52 @@ namespace WinApplWatcher
                         }
                     }
                 }
+
                 Unsubscribe();
-                MessageBox.Show((totsecs / 60) + " Minutes");
-                showdetailsinIE();
+                //MessageBox.Show((totsecs / 60) + " Minutes");
+                //showdetailsinIE();
+
             }
+
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
             }
-        }
+        } */
+
         #region User-defined Methods...
         private void showdetailsinIE()
         {
             //To create XSL file,if it is not existing....
             //if(!File.Exists(@"c:\appl_xsl.xsl")) -- commented by Deepak Bhor
-            if (!File.Exists(appFileName))
+            try
             {
-                //File.Create(@"c:\appl_xsl.xsl").Close(); -- commented by Deepak Bhor
-                File.Create(appFileName).Close();
-                string xslcontents = "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?><xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\"><xsl:template match=\"/\"> <html> <body>  <h2>My Applications Details</h2>  <table border=\"1\"> <tr bgcolor=\"#9acd32\">  <th>Window Title</th>  <th>Process Name</th>  <th>Total Time</th> <th>Current Windows Identity</th> </tr> </tr> <xsl:for-each select=\"ApplDetails/Application_Info\"><xsl:sort select=\"ApplicationName\"/> <tr>  <td><xsl:value-of select=\"ProcessName\"/></td>  <td><xsl:value-of select=\"ApplicationName\"/></td>  <td><xsl:value-of select=\"TotalSeconds\"/></td> <td><xsl:value-of select=\"currentWindowsIdentity\"/></td></tr></xsl:for-each></table></body></html></xsl:template></xsl:stylesheet>";
-                StreamWriter xslwriter = new StreamWriter(@"c:\appl_xsl.xsl");
-                xslwriter.Write(xslcontents);
-                xslwriter.Flush();
-                xslwriter.Close();
+                string xslFileName = Path.Combine(Directory.GetCurrentDirectory(), "appl_xsl.xsl");                    
+                if (!File.Exists(xslFileName))
+                {
+                    //File.Create(@"c:\appl_xsl.xsl").Close(); -- commented by Deepak Bhor
+                    File.Create(xslFileName).Close();
+                    string xslcontents = "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?><xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\"><xsl:template match=\"/\"> <html> <body>  <h2>My Applications Details</h2>  <table border=\"1\"> <tr bgcolor=\"#9acd32\">  <th>Window Title</th>  <th>Process Name</th>  <th>Total Time</th> <th>Current Windows Identity</th> </tr> </tr> <xsl:for-each select=\"ApplDetails/Application_Info\"><xsl:sort select=\"ApplicationName\"/> <tr>  <td><xsl:value-of select=\"ProcessName\"/></td>  <td><xsl:value-of select=\"ApplicationName\"/></td>  <td><xsl:value-of select=\"TotalSeconds\"/></td> <td><xsl:value-of select=\"currentWindowsIdentity\"/></td></tr></xsl:for-each></table></body></html></xsl:template></xsl:stylesheet>";
+                    StreamWriter xslwriter = new StreamWriter(xslFileName);
+                    xslwriter.Write(xslcontents);
+                    xslwriter.Flush();
+                    xslwriter.Close();
+                }
+
+                //TO show the contents of xml file in IE with a proper xsl....
+                System.Diagnostics.Process ie = new Process();
+                //System.Diagnostics.ProcessStartInfo ieinfo = new ProcessStartInfo(@"C:\Program Files\Internet Explorer\iexplore.exe",@"c:\appldetails.xml"); changed by Deepak Bhor
+                System.Diagnostics.ProcessStartInfo ieinfo = new ProcessStartInfo(@"C:\Program Files\Internet Explorer\iexplore.exe", appFileName);
+                ie.StartInfo = ieinfo;
+                //bool started = ie.Start(); -- commented by Deepak Bhor to be reverted....
+                Application.Exit();
             }
-            //TO show the contents of xml file in IE with a proper xsl....
-            System.Diagnostics.Process ie = new Process();
-            //System.Diagnostics.ProcessStartInfo ieinfo = new ProcessStartInfo(@"C:\Program Files\Internet Explorer\iexplore.exe",@"c:\appldetails.xml"); changed by Deepak Bhor
-            System.Diagnostics.ProcessStartInfo ieinfo = new ProcessStartInfo(@"C:\Program Files\Internet Explorer\iexplore.exe", appFileName);
-            ie.StartInfo = ieinfo;
-            bool started = ie.Start();
-            Application.Exit();
+            catch(Exception ex)
+            {
+                MessageBox.Show("Error in Show Details in IE" + ex.Message);
+            }
         }
+
         private void TestFocusedChanged()
         {
             //This is used to handle hashtable,if its length is 1.It means number of active applications is only one....
@@ -594,6 +635,12 @@ namespace WinApplWatcher
             //This is used to save contents of hashtable in a xml file....
             try
             {
+                if (File.Exists(appFileName))
+                {
+                    //appFileName = "D:\\AppWatcher\\appldetails_" + DateTime.Now.ToString("yyyyMMdd-HHMMss") + ".xml";
+                    appFileName = Path.Combine(Directory.GetCurrentDirectory(), "appldetails_" + DateTime.Now.ToString("yyyyMMdd-HHMMss") + ".xml");
+
+                }
                 TestFocusedChanged();
                 //System.IO.StreamWriter writer = new System.IO.StreamWriter(@"c:\appldetails.xml",false); -- commented by Deepak Bhor
                 System.IO.StreamWriter writer = new System.IO.StreamWriter(appFileName, false);
@@ -603,6 +650,7 @@ namespace WinApplWatcher
                 writer.Write("<?xml-stylesheet type=\"text/xsl\" href=\"appl_xsl.xsl\"?>");
                 writer.WriteLine("");
                 writer.Write("<ApplDetails>");
+
                 foreach (var item in watchFiels)
                 {
                     if (!item.seconds.ToString().Trim().StartsWith("0"))
@@ -620,6 +668,7 @@ namespace WinApplWatcher
                         writer.Write(applname);
                         writer.Write("</ApplicationName>");
                         writer.Write("<TotalSeconds>");
+
                         if ((item.seconds / 60) < 1)
                         {
                             writer.Write(Convert.ToInt32(item.seconds) + " Seconds");
@@ -628,13 +677,14 @@ namespace WinApplWatcher
                         {
                             writer.Write(Convert.ToInt32(item.seconds / 60) + " Minutes");
                         }
+
                         writer.Write("</TotalSeconds>");
                         writer.Write("<currentWindowsIdentity>");
                         writer.Write(item.windowsId.ToString().Trim());
                         writer.Write("</currentWindowsIdentity>");
-                        writer.Write("<isUserPartOfAdminGroup>");
+                        writer.Write("<IsUserPartOfAdminGroup>");
                         writer.Write(item.isUserInAdminGroup.ToString().Trim());
-                        writer.Write("</isUserPartOfAdminGroup>");
+                        writer.Write("</IsUserPartOfAdminGroup>");
                         writer.Write("<IntegrityLevel>");
                         writer.Write(item.integratedSecurityLevel.ToString().Trim());
                         writer.Write("</IntegrityLevel>");
@@ -653,6 +703,43 @@ namespace WinApplWatcher
                 MessageBox.Show(ex.Message);
             }
         }
+
+        public static string Encrypt(string toEncrypt, bool useHashing)
+        {
+            byte[] keyArray;
+            byte[] toEncryptArray = UTF8Encoding.UTF8.GetBytes(toEncrypt);
+            System.Configuration.AppSettingsReader settingsReader = new AppSettingsReader();
+            // Get the key from config file
+            string key = (string)settingsReader.GetValue("SecurityKey", typeof(String));
+            //System.Windows.Forms.MessageBox.Show(key);
+            //If hashing use get hashcode regards to your key
+            if (useHashing)
+            {
+                MD5CryptoServiceProvider hashmd5 = new MD5CryptoServiceProvider();
+                keyArray = hashmd5.ComputeHash(UTF8Encoding.UTF8.GetBytes(key));
+                //Always release the resources and flush data
+                // of the Cryptographic service provide. Best Practice
+                hashmd5.Clear();
+            }
+            else
+                keyArray = UTF8Encoding.UTF8.GetBytes(key);
+            TripleDESCryptoServiceProvider tdes = new TripleDESCryptoServiceProvider();
+            //set the secret key for the tripleDES algorithm
+            tdes.Key = keyArray;
+            //mode of operation. there are other 4 modes.
+            //We choose ECB(Electronic code Book)
+            tdes.Mode = CipherMode.ECB;
+            //padding mode(if any extra byte added)
+            tdes.Padding = PaddingMode.PKCS7;
+            ICryptoTransform cTransform = tdes.CreateEncryptor();
+            //transform the specified region of bytes array to resultArray
+            byte[] resultArray = cTransform.TransformFinalBlock(toEncryptArray, 0, toEncryptArray.Length);
+            //Release resources held by TripleDes Encryptor
+            tdes.Clear();
+            //Return the encrypted data into unreadable string format
+            return Convert.ToBase64String(resultArray, 0, resultArray.Length);
+        }
+
         #endregion
         private void notifyIcon1_Click(object sender, System.EventArgs e)
         {
@@ -670,7 +757,7 @@ namespace WinApplWatcher
                     form1.Focus();
                     form1.WindowState = FormWindowState.Normal;
                     notifyIcon1.Text = "Application Watcher is in Visible Mode";
-                    BindGrid();
+                    BindGrid(); //commented by deepak bhor - to be reverted.....
                 }
             }
             catch { }
@@ -679,11 +766,17 @@ namespace WinApplWatcher
         {
             try
             {
-
                 form1.Visible = false;
                 notifyIcon1.Text = "Application Watcher is in Invisible Mode";
                 logintime = DateTime.Now;
+                fileSaveTime = DateTime.Now;
                 form1.Text = "Login Time is at :" + DateTime.Now.ToLongTimeString();
+
+                if(!Directory.Exists(Path.GetDirectoryName(appFileName)))
+                {
+                    MessageBox.Show("Please Create with the Name:" + Path.GetDirectoryName(appFileName).ToString().Trim());
+                    Application.Exit();
+                }
 
                 /*	if(!System.IO.File.Exists(@"c:\appldetails.xml"))
                     {
@@ -714,7 +807,7 @@ namespace WinApplWatcher
         private void menuItem2_Click(object sender, System.EventArgs e)
         {
             //This is activated on click on Refresh menu item to load grid with present contents of xml file....
-            BindGrid();
+            //BindGrid(); Commented by Deepak - To be reverted
         }
         private void menuItem3_Click(object sender, System.EventArgs e)
         {
@@ -723,7 +816,7 @@ namespace WinApplWatcher
             SaveandShowDetails();
             TimeSpan timeinterval = DateTime.Now.Subtract(logintime);
             System.Diagnostics.EventLog.WriteEntry("Application Watcher Total Time Details", timeinterval.Hours + " Hrs " + timeinterval.Minutes + " Mins", System.Diagnostics.EventLogEntryType.Information);
-            MessageBox.Show("Actual Time Spent :" + timeinterval.Hours + " Hrs " + timeinterval.Minutes + " Mins", "Application Watcher Total Time Details");
+            //MessageBox.Show("Actual Time Spent :" + timeinterval.Hours + " Hrs " + timeinterval.Minutes + " Mins", "Application Watcher Total Time Details");
             //StreamReader freader = new StreamReader(@"c:\appldetails.xml"); -- commented by Deepak
             StreamReader freader = new StreamReader(appFileName);
             XmlTextReader xmlreader = new XmlTextReader(freader);
@@ -754,9 +847,8 @@ namespace WinApplWatcher
                     }
                 }
             }
-
-            MessageBox.Show((totsecs / 60) + " Minutes");
-            showdetailsinIE();
+            //MessageBox.Show((totsecs / 60) + " Minutes"); -- Commented By Deepak Bhor
+            showdetailsinIE(); //-- Commented by Deepak Bhor
         }
 
         #region Helper Functions for Admin Privileges and Elevation Status
@@ -905,9 +997,11 @@ namespace WinApplWatcher
         /// </returns>
         internal bool IsRunAsAdmin()
         {
+
             WindowsIdentity id = WindowsIdentity.GetCurrent();
             WindowsPrincipal principal = new WindowsPrincipal(id);
             return principal.IsInRole(WindowsBuiltInRole.Administrator);
+
         }
         /// <summary>
         /// The function gets the integrity level of the current process. Integrity 
@@ -954,6 +1048,7 @@ namespace WinApplWatcher
 
             try
             {
+                
                 // Open the access token of the current process with TOKEN_QUERY.
                 if (!NativeMethods.OpenProcessToken(Process.GetCurrentProcess().Handle,
                     NativeMethods.TOKEN_QUERY, out hToken))
@@ -967,7 +1062,7 @@ namespace WinApplWatcher
                 // because we've given it a null buffer. On exit cbTokenIL will tell 
                 // the size of the group information.
 
-                if (!NativeMethods.GetTokenInformation(hToken,TOKEN_INFORMATION_CLASS.TokenIntegrityLevel, IntPtr.Zero, 0, out cbTokenIL))
+                if (!NativeMethods.GetTokenInformation(hToken, TOKEN_INFORMATION_CLASS.TokenIntegrityLevel, IntPtr.Zero, 0, out cbTokenIL))
                 {
                     int error = Marshal.GetLastWin32Error();
                     if (error != CSUACSelfElevation.NativeMethods.ERROR_INSUFFICIENT_BUFFER)
@@ -1025,6 +1120,53 @@ namespace WinApplWatcher
             return IL;
         }
 
+        private void Form1_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            //This is activated on click on Exit menu item and to show actual and calculated time spent on all applications
+            //opened so far and to open IE to show xml contents....
+            SaveandShowDetails();
+            TimeSpan timeinterval = DateTime.Now.Subtract(logintime);
+            System.Diagnostics.EventLog.WriteEntry("Application Watcher Total Time Details", timeinterval.Hours + " Hrs " + timeinterval.Minutes + " Mins", System.Diagnostics.EventLogEntryType.Information);
+            //MessageBox.Show("Actual Time Spent :" + timeinterval.Hours + " Hrs " + timeinterval.Minutes + " Mins", "Application Watcher Total Time Details");
+            //StreamReader freader = new StreamReader(@"c:\appldetails.xml"); -- commented by Deepak
+            StreamReader freader = new StreamReader(appFileName);
+            XmlTextReader xmlreader = new XmlTextReader(freader);
+            string tottime = "";
+
+            while (xmlreader.Read())
+            {
+                if (xmlreader.NodeType == XmlNodeType.Element && xmlreader.Name == "TotalSeconds")
+                {
+                    tottime += ";" + xmlreader.ReadInnerXml().ToString();
+                }
+            }
+
+            string[] tottimes = tottime.Split(';');
+            long totsecs = 0;
+
+            foreach (string str in tottimes)
+            {
+                if (str != string.Empty)
+                {
+                    if (str.IndexOf("Seconds") != -1)
+                    {
+                        totsecs += Convert.ToInt64(str.Substring(0, str.Length - 8));
+                    }
+                    else
+                    {
+                        totsecs += Convert.ToInt64(str.Substring(0, str.Length - 8)) * 60;
+                    }
+                }
+            }
+            //MessageBox.Show((totsecs / 60) + " Minutes"); -- Commented By Deepak Bhor
+            showdetailsinIE(); //-- Commented by Deepak Bhor
+        }
+
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+
+        }
+
         /// <summary>
         /// The function gets the elevation information of the current process. It 
         /// dictates whether the process is elevated or not. Token elevation is only 
@@ -1049,6 +1191,7 @@ namespace WinApplWatcher
         /// Level == High). In other words, it is not safe to say if the process is 
         /// elevated based on elevation type. Instead, we should use TokenElevation. 
         /// </remarks>
+        /// 
         internal bool IsProcessElevated()
         {
             bool fIsElevated = false;
@@ -1072,7 +1215,6 @@ namespace WinApplWatcher
                 {
                     throw new Win32Exception();
                 }
-
                 // Retrieve token elevation information.
                 if (!NativeMethods.GetTokenInformation(hToken,
                     TOKEN_INFORMATION_CLASS.TokenElevation, pTokenElevation,
@@ -1084,11 +1226,9 @@ namespace WinApplWatcher
                     // on those operating systems.
                     throw new Win32Exception();
                 }
-
                 // Marshal the TOKEN_ELEVATION struct from native to .NET object.
                 TOKEN_ELEVATION elevation = (TOKEN_ELEVATION)Marshal.PtrToStructure(
                     pTokenElevation, typeof(TOKEN_ELEVATION));
-
                 // TOKEN_ELEVATION.TokenIsElevated is a non-zero value if the token 
                 // has elevated privileges; otherwise, a zero value.
                 fIsElevated = (elevation.TokenIsElevated != 0);
@@ -1135,7 +1275,7 @@ namespace WinApplWatcher
     [ComImport, Guid("d08018bd-6958-4a2e-95ea-fec13211da0f")]
     public class windowsService
     {
-        
+
     }
 
     public sealed class SamServer : IDisposable
